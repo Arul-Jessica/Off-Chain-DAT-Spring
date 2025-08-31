@@ -1,6 +1,6 @@
-package org.tokenization.repository;
+package com.tokenization.repository;
 
-import org.tokenization.entity.EventLog;
+import com.tokenization.entity.EventLog;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -9,7 +9,7 @@ import java.util.Optional;
 @Repository
 public interface EventLogRepository extends JpaRepository<EventLog, Long> {
 
-    // JPQL query to find the hash of the most recent event
-    @Query("SELECT e.thisHash FROM EventLog e ORDER BY e.id DESC LIMIT 1")
+    // This custom query finds the 'thisHash' of the most recently created event.
+    @Query(value = "SELECT e.this_hash FROM AJ_EVENT_LOG e ORDER BY e.id DESC FETCH FIRST 1 ROW ONLY", nativeQuery = true)
     Optional<String> findLastHash();
 }
