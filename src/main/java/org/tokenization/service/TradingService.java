@@ -86,4 +86,69 @@ public class TradingService {
         newPosition.setQuantity(BigDecimal.ZERO);
         return newPosition;
     }
+
+    // In TradingService.java (add this new method)
+    @Autowired private TradeRepository tradeRepository;
+    @Transactional
+    public void runMatchingEngineForAsset(Long assetId) {
+        // 1. Fetch all open buy and sell orders for the asset, correctly sorted.
+        List<Order> buyOrders = orderRepository.findOpenBuyOrders(assetId, "BUY");
+        List<Order> sellOrders = orderRepository.findOpenSellOrders(assetId, "SELL");
+
+        int matchesFound = 0;
+
+        // 2. Loop through each buy order and try to match it against available sell orders.
+        for (Order buyOrder : buyOrders) {
+            for (Order sellOrder : sellOrders) {
+                // Skip orders that we have already filled in this run.
+                if (!"OPEN".equals(buyOrder.getStatus()) || !"OPEN".equals(sellOrder.getStatus())) {
+                    continue;
+                }
+
+                // Match condition: The buyer's bid is greater than or equal to the seller's ask.
+                if (buyOrder.getPrice().compareTo(sellOrder.getPrice()) >= 0) {
+                    // 3. A match is found!
+
+                    // Determine the quantity of the trade (the smaller of the two orders).
+                    BigDecimal tradeQuantity = buyOrder.getQuantity().min(sellOrder.getQuantity());
+
+                    // The trade price is the price of the older order (the sell order, which was listed first).
+                    BigDecimal tradePrice = sellOrder.getPrice();
+
+                    // 4. Create and save the UNSETTLED trade.
+                    Trade newTrade = new Trade();
+                    newTrade.setBuyOrderId(buyOrder.getId());
+                    newTrade.setSellOrderId(sellOrder.getId());
+                    newTrade.setAssetId(assetId);
+                    newTrade.setQuantity(tradeQuantity);
+                    newTrade.setPrice(tradePrice);
+                    newTrade.setStatus("UNSETTLED");
+                    tradeRepository.save(newTrade); // We need to inject TradeRepository
+
+                    // 5. Update the orders' statuses.
+                    // For simplicity, we'll mark them as FILLED. A real system would handle partial fills.
+                    buyOrder.setStatus("FILLED");
+                    sellOrder.setStatus("FILLED");
+                    orderRepository.save(buyOrder);
+                    orderRepository.save(sellOrder);
+
+                    // 6. Record the audit event for the match.
+                    String payload = String.format(
+                            "{\"tradeId\": %d, \"buyOrderId\": %d, \"sellOrderId\": %d, \"assetId\": %d, \"quantity\": %s, \"price\": %s}",
+                            newTrade.getId(), buyOrder.getId(), sellOrder.getId(), assetId, tradeQuantity.toPlainString(), tradePrice.toPlainString()
+                    );
+                    auditService.appendEvent("ORDERS_MATCHED", payload);
+
+                    matchesFound++;
+
+                    // Since this sell order has been filled, break the inner loop to move to the next buy order.
+                    break;
+                }
+            }
+        }
+
+        if (matchesFound > 0) {
+            System.out.printf("Matching Engine: Found and processed %d new trades for asset ID %d.%n", matchesFound, assetId);
+        }
+    }
 }
