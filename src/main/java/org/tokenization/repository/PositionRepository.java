@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface PositionRepository extends JpaRepository<Position, Long> {
     // Add this new method
     Optional<Position> findByWalletIdAndAssetId(Long walletId, Long assetId);
+    // In PositionRepository.java
+    List<Position> findByWalletId(Long walletId);
 }
