@@ -21,20 +21,20 @@ public class PartyService {
     // The @Transactional annotation replaces all our manual connection.commit/rollback logic!
     @Transactional
     public Party createPartyAndWallets(CreatePartyRequest request) {
-        // 1. Create and save the party
         Party newParty = new Party();
         newParty.setName(request.getName());
         newParty.setKycLevel(request.getKycLevel());
-        newParty.setStatus("ACTIVE");
+        newParty.setStatus("ACTIVE"); // Set a default status
+
+        // Spring Data JPA saves the entity and populates the generated ID for us.
         Party savedParty = partyRepository.save(newParty);
 
-        // 2. Create an ASSET wallet for the new party
+        // Create the associated wallets using the new party's ID
         Wallet assetWallet = new Wallet();
         assetWallet.setPartyId(savedParty.getId());
         assetWallet.setWalletType("ASSET");
         walletRepository.save(assetWallet);
 
-        // 3. Create a CASH wallet for the new party
         Wallet cashWallet = new Wallet();
         cashWallet.setPartyId(savedParty.getId());
         cashWallet.setWalletType("CASH");
