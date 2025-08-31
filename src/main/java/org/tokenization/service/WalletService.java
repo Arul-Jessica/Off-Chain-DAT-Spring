@@ -55,4 +55,39 @@ public class WalletService {
         response.setTokenBalances(tokenBalances);
         return response;
     }
+
+    // In WalletService.java
+
+    @Transactional // This is a transactional operation
+    public void seedCash(SeedCashRequest request) {
+        // 1. Find the CASH wallet for the specified party.
+        Wallet cashWallet = walletRepository.findByPartyId(request.getPartyId()).stream()
+                .filter(w -> "CASH".equals(w.getWalletType()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No CASH wallet found for party ID: " + request.getPartyId()));
+
+        // 2. Find the party's existing cash ledger for this currency, or create a new one.
+        CashLedger ledger = cashLedgerRepository.findByWalletIdAndCurrency(cashWallet.getId(), request.getCurrency())
+                .orElseGet(() -> {
+                    CashLedger newLedger = new CashLedger();
+                    newLedger.setWalletId(cashWallet.getId());
+                    newLedger.setCurrency(request.getCurrency());
+                    newLedger.setAmount(BigDecimal.ZERO);
+                    return newLedger;
+                });
+
+        // 3. Add the new amount to the existing balance.
+        ledger.setAmount(ledger.getAmount().add(request.getAmount()));
+
+        // 4. Save the changes to the database.
+        cashLedgerRepository.save(ledger);
+
+        // Note: A real-world system would absolutely require an audit log for this operation.
+        // We can add this call to the auditService later if needed.
+        // For example:
+        // String payload = String.format("{\"partyId\":%d, \"amount\":%s, \"currency\":\"%s\"}", ...);
+        // auditService.appendEvent("ADMIN_CASH_SEEDED", payload);
+
+        System.out.printf("Successfully seeded %s %s to party %d%n", request.getAmount().toPlainString(), request.getCurrency(), request.getPartyId());
+    }
 }

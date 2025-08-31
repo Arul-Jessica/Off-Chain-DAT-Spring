@@ -20,4 +20,13 @@ public class WalletController {
         WalletBalanceResponse balances = walletService.getWalletBalances(partyId);
         return ResponseEntity.ok(balances);
     }
+
+    @PostMapping("/seed-cash")
+    @Operation(summary = "Seed cash into a party's wallet (Admin function)",
+            description = "Adds a specified amount of a currency to a party's cash wallet. This is an administrative action.")
+// NOTE: When we add security, we will lock this endpoint down with @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<GenericResponse> seedCash(@RequestBody SeedCashRequest request) {
+        walletService.seedCash(request);
+        String message = String.format("Successfully seeded %s %s to party %d", request.getAmount(), request.getCurrency(), request.getPartyId());
+        return ResponseEntity.ok(new GenericResponse(message));
 }
