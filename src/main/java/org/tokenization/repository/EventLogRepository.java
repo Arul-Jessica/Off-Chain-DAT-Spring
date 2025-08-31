@@ -12,4 +12,6 @@ public interface EventLogRepository extends JpaRepository<EventLog, Long> {
     // This custom query finds the 'thisHash' of the most recently created event.
     @Query(value = "SELECT e.this_hash FROM AJ_EVENT_LOG e ORDER BY e.id DESC FETCH FIRST 1 ROW ONLY", nativeQuery = true)
     Optional<String> findLastHash();
+
+    List<EventLog> findAllByOrderByIdAsc();
 }
